@@ -185,36 +185,29 @@ return [
             'queue' => ['default'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
-            'memory' => 128,
-            'tries' => 1,
-            'timeout' => 60,
-            'nice' => 0,
+            'maxProcesses' => 2,
+            'tries' => 3,
         ],
         'supervisor-monitor' => [
             'connection' => 'redis',
             'queue' => ['monitor'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
-            'maxProcesses' => 20,
-            'memory' => 128,
-            'tries' => 1,
-            'sleep' => 3,
-            'timeout' => 3600,
-            'nice' => 0,
+            'maxProcesses' => 6,
+            'tries' => 3,
         ],
     ],
 
     'environments' => [
         'production' => [
             'supervisor-default' => [
-                'maxProcesses' => 20,
+                'maxProcesses' => 2,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
                 'force' => env('HORIZON_FORCE', false),
             ],
             'supervisor-monitor' => [
-                'maxProcesses' => 10,
+                'maxProcesses' => 6,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
                 'force' => env('HORIZON_FORCE', false),
@@ -223,10 +216,10 @@ return [
 
         'local' => [
             'supervisor-default' => [
-                'maxProcesses' => 5,
+                'maxProcesses' => 2,
             ],
             'supervisor-monitor' => [
-                'maxProcesses' => 5,
+                'maxProcesses' => 6,
             ],
         ],
     ],
