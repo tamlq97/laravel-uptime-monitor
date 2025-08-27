@@ -180,42 +180,53 @@ return [
     */
 
     'defaults' => [
-        'supervisor-1' => [
+        'supervisor-default' => [
             'connection' => 'redis',
             'queue' => ['default'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,
-            'maxTime' => 0,
-            'maxJobs' => 0,
             'memory' => 128,
             'tries' => 1,
             'timeout' => 60,
+            'nice' => 0,
+        ],
+        'supervisor-monitor' => [
+            'connection' => 'redis',
+            'queue' => ['monitor'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 20,
+            'memory' => 128,
+            'tries' => 1,
+            'sleep' => 3,
+            'timeout' => 3600,
             'nice' => 0,
         ],
     ],
 
     'environments' => [
         'production' => [
-            'monitor' => [ // Tên supervisor
-                'connection' => 'redis',
-                'queue' => ['monitors'], // Tên hàng đợi
-                'balance' => 'auto',
-                'processes' => 6, // Số lượng tiến trình worker
-                'tries' => 3,
+            'supervisor-default' => [
+                'maxProcesses' => 20,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+                'force' => env('HORIZON_FORCE', false),
             ],
-            'default' => [
-                'connection' => 'redis',
-                'queue' => ['default'],
-                'balance' => 'auto',
-                'processes' => 2, // Dành cho các tác vụ khác
-                'tries' => 3,
+            'supervisor-monitor' => [
+                'maxProcesses' => 10,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+                'force' => env('HORIZON_FORCE', false),
             ],
         ],
 
         'local' => [
-            'supervisor-1' => [
-                'maxProcesses' => 3,
+            'supervisor-default' => [
+                'maxProcesses' => 5,
+            ],
+            'supervisor-monitor' => [
+                'maxProcesses' => 5,
             ],
         ],
     ],
