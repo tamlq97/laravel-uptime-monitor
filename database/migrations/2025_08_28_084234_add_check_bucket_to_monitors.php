@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('monitors', function (Blueprint $table) {
-                $table->unsignedInteger('check_bucket')->default(0)->index();
+            $table->integer('check_bucket')->default(0)->index();
         });
     }
 

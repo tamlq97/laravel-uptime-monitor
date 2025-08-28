@@ -11,18 +11,15 @@ class Monitor extends ModelsMonitor
     {
         parent::booted();
         static::creating(function ($monitor) {
-            // Ví dụ chia 10 bucket
-            $bucketCount = 10;
+            $maxPerMinute = config('monitor.max_monitors_per_minute');
+            $total = self::query()->count();
+            $bucketCount = max(1, ceil($total / $maxPerMinute));
 
-            // Nếu interval = 1 phút thì ép bucket = -1 (để nhận diện riêng)
             if ($monitor->uptime_check_interval_in_minutes === 1) {
-                $monitor->check_bucket = -1;
-                return;
+                $monitor->check_bucket = -1; // bucket đặc biệt
+            } else {
+                $monitor->check_bucket = $total % $bucketCount;
             }
-
-            // Round robin dựa trên tổng số record
-            $bucket = ($monitor->newQuery()->max('id') + 1) % $bucketCount;
-            $monitor->check_bucket = $bucket;
         });
     }
 }

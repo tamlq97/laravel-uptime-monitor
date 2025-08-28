@@ -12,17 +12,23 @@ use Spatie\UptimeMonitor\MonitorRepository;
 
 class DispatchUptimeChecks extends Command
 {
-    protected $signature = 'monitor:dispatch-checks {--batch=100} {--buckets=10}';
-    protected $description = 'Dispatches a job for each enabled monitor.';
+    protected $signature = 'monitor:dispatch-checks {--batch=} {--maxPerMinute=}';
+    protected $description = 'Dispatch monitor checks with dynamic buckets';
 
     public function handle(): int
     {
-        $batchSize = (int) $this->option('batch');
-        $bucketCount = (int) $this->option('buckets');
-        // Xác định bucket hiện tại dựa vào phút hiện tại
+        $batchSize      = $this->option('batch') ?? config('monitor.batch_size');
+        $maxPerMinute   = $this->option('maxPerMinute') ?? config('monitor.max_monitors_per_minute');
+
+        $totalMonitors  = Monitor::where('uptime_check_enabled', true)->count();
+
+        // Tính số bucket động
+        $bucketCount = max(1, ceil($totalMonitors / $maxPerMinute));
         $currentBucket = now()->minute % $bucketCount;
 
-        $this->info("Dispatching monitors for bucket {$currentBucket} and always bucket -1");
+        $this->info("Total monitors: {$totalMonitors}");
+        $this->info("Auto bucket count: {$bucketCount}");
+        $this->info("Dispatching bucket: {$currentBucket}");
 
         $now = now();
         // 1️⃣ Luôn chạy monitor interval = 1 phút (bucket = -1)
@@ -43,10 +49,11 @@ class DispatchUptimeChecks extends Command
                 dispatch(new CheckMonitorBatchJob($monitors->pluck('id')->toArray()));
             });
 
-        // 2️⃣ Chỉ chạy bucket tới lượt
+        // 2️⃣ Bucket động cho monitor khác
         Monitor::query()
             ->where('uptime_check_enabled', true)
             ->where('check_bucket', $currentBucket)
+            ->where('uptime_check_interval_in_minutes', '>', 1)
             ->where(function ($query) {
                 // Case 1: Monitor has never been checked
                 $query->whereNull('uptime_last_check_date')
