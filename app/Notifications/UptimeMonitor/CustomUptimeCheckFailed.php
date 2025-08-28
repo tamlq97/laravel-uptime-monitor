@@ -11,6 +11,7 @@ class CustomUptimeCheckFailed extends UptimeCheckFailed
     public function toTelegram($notifiable)
     {
         return TelegramMessage::create()
+            ->to('5035815143')
             ->content("🚨 *Website Down Alert*\n\n")
             ->line("🌐 **URL:** {$this->getMonitor()->url}")
             ->line("❌ **Status:** Website seems down")

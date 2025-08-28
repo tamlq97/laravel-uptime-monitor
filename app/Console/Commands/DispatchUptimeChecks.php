@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\CheckMonitorBatchJob;
 use App\Jobs\CheckUptimeJob;
 use Illuminate\Console\Command;
 use Spatie\UptimeMonitor\Models\Enums\UptimeStatus;
@@ -27,10 +28,8 @@ class DispatchUptimeChecks extends Command
                     // Case 4: Last check was more than the interval ago
                     ->orWhereRaw('ADDDATE(uptime_last_check_date, INTERVAL uptime_check_interval_in_minutes MINUTE) <= ?', [$now]);
             })
-            ->chunk(1000, function ($monitors) {
-                foreach ($monitors as $monitor) {
-                    dispatch(new CheckUptimeJob($monitor));
-                }
+            ->chunk(100, function ($monitors) {
+                dispatch(new CheckMonitorBatchJob($monitors->pluck('id')->toArray()));
             });
 
         $this->info('All uptime check jobs have been dispatched.');

@@ -11,6 +11,7 @@ class CustomUptimeCheckSucceeded extends UptimeCheckSucceeded
     public function toTelegram($notifiable)
     {
         return TelegramMessage::create()
+            ->to('5035815143')
             ->content("✅ *Website Successful*\n\n")
             ->line("🌐 **URL:** {$this->getMonitor()->url}")
             ->line($this->getMessageText())

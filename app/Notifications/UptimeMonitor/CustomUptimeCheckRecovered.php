@@ -11,6 +11,7 @@ class CustomUptimeCheckRecovered extends UptimeCheckRecovered
     public function toTelegram($notifiable)
     {
         return TelegramMessage::create()
+            ->to('5035815143')
             ->content("✅ *Website Recovered*\n\n")
             ->line("🌐 **URL:** {$this->getMonitor()->url}")
             ->line("⏱️ **Downtime:** {$this->event->downtimePeriod->duration()}")
