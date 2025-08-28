@@ -11,6 +11,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use Psr\Http\Message\ResponseInterface;
 use Spatie\UptimeMonitor\Models\Monitor;
 
@@ -18,59 +19,84 @@ class CheckUptimeJob implements ShouldQueue
 {
     use InteractsWithQueue, Queueable, SerializesModels;
 
+    private array $headers;
+    private array $guzzleOptions;
+    private int $timeout;
+    private string $checkMethod;
+
     public function __construct(public Monitor $monitor)
     {
         $this->onQueue('monitor');
+
+        // Cache config values to avoid multiple config() calls
+        $this->headers = $this->buildHeaders();
+        $this->guzzleOptions = config('uptime-monitor.uptime_check.guzzle_options', []);
+        $this->timeout = config('uptime-monitor.uptime_check.timeout_per_site', 10);
+        $this->checkMethod = $this->monitor->uptime_check_method ?? 'GET';
     }
 
     public function handle(HeartbeatService $heartbeatService): void
     {
-        (new EachPromise($this->getPromises(), [
-            'concurrency' => config('uptime-monitor.uptime_check.concurrent_checks'),
-            'fulfilled' => function (ResponseInterface $response, $index) use ($heartbeatService) {
-                $this->monitor->uptimeRequestSucceeded($response);
-                $heartbeatService->recordHeartbeat(
-                    monitor: $this->monitor,
-                    status: 'up',
-                    responseTime: null,
-                    statusCode: null,
-                    checkMethod: $monitor->uptime_check_method ?? 'GET'
-                );
-            },
+        try {
+            $startTime = microtime(true);
 
-            'rejected' => function (TransferException $exception, $index) use ($heartbeatService) {
-                $this->monitor->uptimeRequestFailed($exception->getMessage());
-                $heartbeatService->recordHeartbeat(
-                    monitor: $this->monitor,
-                    status: 'down',
-                    errorMessage: $this->monitor->uptime_check_failure_reason,
-                    checkMethod: $this->monitor->uptime_check_method ?? 'GET'
-                );
-            },
-        ]))->promise()->wait();
+            (new EachPromise($this->getPromises(), [
+                'concurrency' => config('uptime-monitor.uptime_check.concurrent_checks'),
+                'fulfilled' => function (ResponseInterface $response, $index) use ($heartbeatService, $startTime) {
+                    $responseTime = (int) ((microtime(true) - $startTime) * 1000);
+
+                    $this->monitor->uptimeRequestSucceeded($response);
+                    $heartbeatService->recordHeartbeat(
+                        monitor: $this->monitor,
+                        status: 'up',
+                        responseTime: $responseTime,
+                        statusCode: $response->getStatusCode(),
+                        checkMethod: $this->checkMethod
+                    );
+                },
+
+                'rejected' => function (TransferException $exception, $index) use ($heartbeatService) {
+                    $this->monitor->uptimeRequestFailed($exception->getMessage());
+                    $heartbeatService->recordHeartbeat(
+                        monitor: $this->monitor,
+                        status: 'down',
+                        errorMessage: $this->monitor->uptime_check_failure_reason,
+                        checkMethod: $this->checkMethod
+                    );
+                },
+            ]))->promise()->wait();
+        } catch (\Exception $e) {
+            Log::error('CheckUptimeJob failed', [
+                'monitor_id' => $this->monitor->id,
+                'url' => $this->monitor->url,
+                'error' => $e->getMessage()
+            ]);
+
+            $this->fail($e);
+        }
     }
 
     protected function getPromises(): Generator
     {
         $client = GuzzleFactory::make(
-            config('uptime-monitor.uptime_check.guzzle_options', []),
-            config('uptime-monitor.uptime-check.retry_connection_after_milliseconds', 100)
+            $this->guzzleOptions,
+            config('uptime-monitor.uptime_check.retry_connection_after_milliseconds', 100)
         );
 
         $promise = $client->requestAsync(
-            $this->monitor->uptime_check_method,
+            $this->checkMethod,
             $this->monitor->url,
             array_filter([
-                'connect_timeout' => config('uptime-monitor.uptime_check.timeout_per_site'),
-                'headers' => $this->promiseHeaders($this->monitor),
+                'connect_timeout' => $this->timeout,
+                'headers' => $this->headers,
                 'body' => $this->monitor->uptime_check_payload,
             ])
         )->then(
-            function (ResponseInterface $response) {
-                return $response;
-            },
+            null, // Remove redundant fulfilled callback
             function (TransferException $exception) {
-                if (in_array($exception->getCode(), config('uptime-monitor.uptime_check.additional_status_codes', []))) {
+                $additionalStatusCodes = config('uptime-monitor.uptime_check.additional_status_codes', []);
+
+                if (in_array($exception->getCode(), $additionalStatusCodes)) {
                     return $exception->getResponse();
                 }
 
@@ -81,12 +107,12 @@ class CheckUptimeJob implements ShouldQueue
         yield $promise;
     }
 
-    private function promiseHeaders(Monitor $monitor): array
+    private function buildHeaders(): array
     {
-        return collect([])
-            ->merge(['User-Agent' => config('uptime-monitor.uptime_check.user_agent')])
-            ->merge(config('uptime-monitor.uptime_check.additional_headers') ?? [])
-            ->merge($monitor->uptime_check_additional_headers)
-            ->toArray();
+        return array_merge(
+            ['User-Agent' => config('uptime-monitor.uptime_check.user_agent', 'Laravel Uptime Monitor')],
+            config('uptime-monitor.uptime_check.additional_headers', []),
+            $this->monitor->uptime_check_additional_headers ?? []
+        );
     }
 }
