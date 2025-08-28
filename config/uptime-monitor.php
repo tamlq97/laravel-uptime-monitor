@@ -9,9 +9,9 @@ return [
     'notifications' => [
 
         'notifications' => [
-            \App\Notifications\UptimeMonitor\CustomUptimeCheckFailed::class => ['telegram', 'slack'],
-            \App\Notifications\UptimeMonitor\CustomUptimeCheckRecovered::class => ['telegram', 'slack'],
-            \App\Notifications\UptimeMonitor\CustomUptimeCheckSucceeded::class => ['telegram', 'slack'],
+            \App\Notifications\UptimeMonitor\CustomUptimeCheckFailed::class => ['telegram'],
+            \App\Notifications\UptimeMonitor\CustomUptimeCheckRecovered::class => ['telegram'],
+            \App\Notifications\UptimeMonitor\CustomUptimeCheckSucceeded::class => ['telegram'],
 
             \Spatie\UptimeMonitor\Notifications\Notifications\CertificateCheckFailed::class => [''],
             \Spatie\UptimeMonitor\Notifications\Notifications\CertificateExpiresSoon::class => [''],
