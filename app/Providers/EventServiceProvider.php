@@ -15,12 +15,12 @@ class EventServiceProvider extends ServiceProvider
      * @var array<class-string, array<int, class-string>>
      */
     protected $listen = [
-        UptimeCheckSucceeded::class => [
-            RecordHeartbeatListener::class,
-        ],
-        UptimeCheckFailed::class => [
-            RecordHeartbeatListener::class,
-        ],
+        // UptimeCheckSucceeded::class => [
+        //     RecordHeartbeatListener::class,
+        // ],
+        // UptimeCheckFailed::class => [
+        //     RecordHeartbeatListener::class,
+        // ],
     ];
 
     /**

@@ -45,4 +45,9 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function routeNotificationForTelegram()
+    {
+        return $this->telegram_chat_id; // Cần thêm field này vào database
+    }
 }

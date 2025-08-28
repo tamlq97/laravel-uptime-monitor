@@ -191,7 +191,7 @@ return [
         'supervisor-monitor' => [
             'connection' => 'redis',
             'queue' => ['monitor'],
-            'balance' => 'auto',
+            'balance' => 'simple',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 6,
             'tries' => 3,
