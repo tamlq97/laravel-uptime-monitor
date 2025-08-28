@@ -54,7 +54,7 @@ class DispatchUptimeChecks extends Command
             ->where('uptime_check_enabled', true)
             ->where('check_bucket', $currentBucket)
             ->where('uptime_check_interval_in_minutes', '>', 1)
-            ->where(function ($query) {
+            ->where(function ($query) use ($now) {
                 // Case 1: Monitor has never been checked
                 $query->whereNull('uptime_last_check_date')
                     // Case 2: Monitor is currently down
