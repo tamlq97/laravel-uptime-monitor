@@ -13,7 +13,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Psr\Http\Message\ResponseInterface;
-use Spatie\UptimeMonitor\Models\Monitor;
+use App\Models\Monitor;
 
 class CheckUptimeJob implements ShouldQueue
 {

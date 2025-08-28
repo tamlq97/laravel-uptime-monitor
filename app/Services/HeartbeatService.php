@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Heartbeat;
-use Spatie\UptimeMonitor\Models\Monitor;
+use App\Models\Monitor;
 use Illuminate\Support\Facades\Log;
 
 class HeartbeatService
@@ -48,7 +48,7 @@ class HeartbeatService
     public function getStatistics(Monitor $monitor, int $days = 30): array
     {
         $startDate = now()->subDays($days);
-        
+
         $heartbeats = Heartbeat::forMonitor($monitor->id)
             ->betweenDates($startDate, now())
             ->get();
@@ -56,7 +56,7 @@ class HeartbeatService
         $total = $heartbeats->count();
         $successful = $heartbeats->where('status', 'up')->count();
         $failed = $heartbeats->where('status', 'down')->count();
-        
+
         $uptime = $total > 0 ? ($successful / $total) * 100 : 0;
         $avgResponseTime = $heartbeats->where('response_time', '>', 0)->avg('response_time');
 
@@ -76,7 +76,7 @@ class HeartbeatService
     public function cleanupOldHeartbeats(int $daysToKeep = 90): int
     {
         $cutoffDate = now()->subDays($daysToKeep);
-        
+
         return Heartbeat::where('checked_at', '<', $cutoffDate)->delete();
     }
 
@@ -89,8 +89,8 @@ class HeartbeatService
             return null;
         }
 
-        return strlen($responseBody) > $maxLength 
-            ? substr($responseBody, 0, $maxLength) . '...' 
+        return strlen($responseBody) > $maxLength
+            ? substr($responseBody, 0, $maxLength) . '...'
             : $responseBody;
     }
 }

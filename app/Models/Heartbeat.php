@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Spatie\UptimeMonitor\Models\Monitor;
+use App\Models\Monitor;
 
 class Heartbeat extends Model
 {

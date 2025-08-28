@@ -3,12 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Jobs\CheckMonitorBatchJob;
-use App\Jobs\CheckUptimeJob;
+use App\Models\Monitor;
 use Illuminate\Console\Command;
 use Spatie\UptimeMonitor\Models\Enums\UptimeStatus;
-use Spatie\UptimeMonitor\Models\Monitor;
-use Spatie\UptimeMonitor\MonitorCollection;
-use Spatie\UptimeMonitor\MonitorRepository;
 
 class DispatchUptimeChecks extends Command
 {

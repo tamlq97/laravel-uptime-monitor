@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\Monitor;
 use App\Services\HeartbeatService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -10,7 +11,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise;
-use Spatie\UptimeMonitor\Models\Monitor;
+use Illuminate\Support\Collection;
 
 class CheckMonitorBatchJob implements ShouldQueue
 {
@@ -23,6 +24,7 @@ class CheckMonitorBatchJob implements ShouldQueue
 
     public function handle(HeartbeatService $heartbeatService)
     {
+        /** @var Collection<int,Monitor> $monitors */
         $monitors = Monitor::whereIn('id', $this->monitorIds)->get();
 
         $client = new Client(['timeout' => 10]);
