@@ -9,9 +9,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use GuzzleHttp\Client;
-use GuzzleHttp\Promise;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Http;
 
 class CheckMonitorBatchJob implements ShouldQueue
 {
@@ -27,21 +26,21 @@ class CheckMonitorBatchJob implements ShouldQueue
         /** @var Collection<int,Monitor> $monitors */
         $monitors = Monitor::whereIn('id', $this->monitorIds)->get();
 
-        $client = new Client(['timeout' => 10]);
+        $pool = Http::pool(function ($pool) use ($monitors) {
+            $requests = [];
+            foreach ($monitors as $monitor) {
+                $requests[$monitor->id] = $pool->timeout(10)->get($monitor->url);
+            }
+            return $requests;
+        });
 
-        $promises = [];
-
-        foreach ($monitors as $monitor) {
-            $promises[$monitor->id] = $client->getAsync($monitor->url);
-        }
-
-        $results = Promise\Utils::settle($promises)->wait();
         $startTime = microtime(true);
-        foreach ($monitors as $monitor) {
-            $result = $results[$monitor->id];
 
-            if ($result['state'] === 'fulfilled') {
-                $response = $result['value'];
+        foreach ($monitors as $monitor) {
+            /** @var \Illuminate\Http\Client\Response $response */
+            $response = $pool[$monitor->id];
+
+            if ($response->successful()) {
                 $responseTime = (int) ((microtime(true) - $startTime) * 1000);
 
                 $monitor->uptimeRequestSucceeded($response);
@@ -49,11 +48,15 @@ class CheckMonitorBatchJob implements ShouldQueue
                     monitor: $monitor,
                     status: 'up',
                     responseTime: $responseTime,
-                    statusCode: $response->getStatusCode(),
+                    statusCode: $response->status(),
                     checkMethod: $monitor->uptime_check_method ?? 'GET'
                 );
             } else {
-                $monitor->uptimeRequestFailed(isset($result['reason']) ? $result['reason'] : 'Unknown error');
+                $errorMessage = $response->failed()
+                    ? "HTTP {$response->status()}: {$response->body()}"
+                    : 'Request failed';
+
+                $monitor->uptimeRequestFailed($errorMessage);
                 $heartbeatService->recordHeartbeat(
                     monitor: $monitor,
                     status: 'down',
