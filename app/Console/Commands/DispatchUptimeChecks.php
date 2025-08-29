@@ -14,8 +14,8 @@ class DispatchUptimeChecks extends Command
 
     public function handle(): int
     {
-        $batchSize      = $this->option('batch') ?? config('monitor.batch_size');
-        $maxPerMinute   = $this->option('maxPerMinute') ?? config('monitor.max_monitors_per_minute');
+        $batchSize      = $this->option('batch') ?? config('monitor.batch_size', 100);
+        $maxPerMinute   = $this->option('maxPerMinute') ?? config('monitor.max_monitors_per_minute', 2000);
 
         $totalMonitors  = Monitor::where('uptime_check_enabled', true)->count();
 

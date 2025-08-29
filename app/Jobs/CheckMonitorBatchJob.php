@@ -7,6 +7,8 @@ use App\Services\HeartbeatService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Collection;
@@ -26,37 +28,52 @@ class CheckMonitorBatchJob implements ShouldQueue
         /** @var Collection<int,Monitor> $monitors */
         $monitors = Monitor::whereIn('id', $this->monitorIds)->get();
 
-        $pool = Http::pool(function ($pool) use ($monitors) {
-            $requests = [];
-            foreach ($monitors as $monitor) {
-                $requests[$monitor->id] = $pool->timeout(10)->get($monitor->url);
-            }
-            return $requests;
-        });
-
+        // Bắt đầu timer
         $startTime = microtime(true);
 
+        // Gửi pool request
+        $responses = Http::pool(function ($pool) use ($monitors) {
+            foreach ($monitors as $monitor) {
+                $pool->as((string) $monitor->id)->timeout(10)->get($monitor->url);
+            }
+        });
+
+        // Xử lý kết quả
         foreach ($monitors as $monitor) {
-            /** @var \Illuminate\Http\Client\Response $response */
-            $response = $pool[$monitor->id];
+            $response = $responses[$monitor->id];
+            $responseTime = (int) ((microtime(true) - $startTime) * 1000);
 
-            if ($response->successful()) {
-                $responseTime = (int) ((microtime(true) - $startTime) * 1000);
-
-                $monitor->uptimeRequestSucceeded($response);
+            if ($response instanceof Response) {
+                if ($response->successful()) {
+                    $monitor->uptimeRequestSucceeded($response->toPsrResponse());
+                    $heartbeatService->recordHeartbeat(
+                        monitor: $monitor,
+                        status: 'up',
+                        responseTime: $responseTime,
+                        statusCode: $response->status(),
+                        checkMethod: $monitor->uptime_check_method ?? 'GET'
+                    );
+                } else {
+                    $monitor->uptimeRequestFailed($response->getReasonPhrase() ?: 'Unknown error');
+                    $heartbeatService->recordHeartbeat(
+                        monitor: $monitor,
+                        status: 'down',
+                        errorMessage: $monitor->uptime_check_failure_reason,
+                        checkMethod: $monitor->uptime_check_method ?? 'GET'
+                    );
+                }
+            } elseif ($response instanceof ConnectionException) {
+                // Trường hợp lỗi kết nối (timeout, refused …)
+                $monitor->uptimeRequestFailed($response->getMessage());
                 $heartbeatService->recordHeartbeat(
                     monitor: $monitor,
-                    status: 'up',
-                    responseTime: $responseTime,
-                    statusCode: $response->status(),
+                    status: 'down',
+                    errorMessage: $monitor->uptime_check_failure_reason,
                     checkMethod: $monitor->uptime_check_method ?? 'GET'
                 );
             } else {
-                $errorMessage = $response->failed()
-                    ? "HTTP {$response->status()}: {$response->body()}"
-                    : 'Request failed';
-
-                $monitor->uptimeRequestFailed($errorMessage);
+                // fallback unknown
+                $monitor->uptimeRequestFailed('Unknown error');
                 $heartbeatService->recordHeartbeat(
                     monitor: $monitor,
                     status: 'down',
