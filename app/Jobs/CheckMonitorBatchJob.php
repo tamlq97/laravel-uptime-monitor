@@ -18,10 +18,7 @@ class CheckMonitorBatchJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function __construct(public array $monitorIds)
-    {
-        $this->onQueue('monitor');
-    }
+    public function __construct(public array $monitorIds) {}
 
     public function handle(HeartbeatService $heartbeatService)
     {

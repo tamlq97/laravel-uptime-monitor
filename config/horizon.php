@@ -185,15 +185,31 @@ return [
             'queue' => ['default'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'tries' => 3,
+        ],
+        'supervisor-monitor-priority' => [
+            'connection' => 'redis',
+            'queue' => ['monitor-priority'], // Sửa lỗi chính tả
+            'balance' => 'simple',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 4,
+            'tries' => 3,
+        ],
+        'supervisor-monitor-regular' => [
+            'connection' => 'redis',
+            'queue' => ['monitor-regular'],
+            'balance' => 'simple',
+            'autoScalingStrategy' => 'time',
             'maxProcesses' => 2,
             'tries' => 3,
         ],
-        'supervisor-monitor' => [
+        'supervisor-monitor-minute' => [ // Đổi tên để tránh trùng lặp
             'connection' => 'redis',
-            'queue' => ['monitor'],
+            'queue' => ['monitor-every-minute'],
             'balance' => 'simple',
             'autoScalingStrategy' => 'time',
-            'maxProcesses' => 6,
+            'maxProcesses' => 2,
             'tries' => 3,
         ],
     ],
@@ -201,13 +217,25 @@ return [
     'environments' => [
         'production' => [
             'supervisor-default' => [
+                'maxProcesses' => 1,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+                'force' => env('HORIZON_FORCE', false),
+            ],
+            'supervisor-monitor-priority' => [ // Khớp với defaults
+                'maxProcesses' => 4,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+                'force' => env('HORIZON_FORCE', false),
+            ],
+            'supervisor-monitor-regular' => [ // Thêm supervisor này
                 'maxProcesses' => 2,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
                 'force' => env('HORIZON_FORCE', false),
             ],
-            'supervisor-monitor' => [
-                'maxProcesses' => 6,
+            'supervisor-monitor-minute' => [ // Thêm supervisor này
+                'maxProcesses' => 2,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
                 'force' => env('HORIZON_FORCE', false),
@@ -216,10 +244,16 @@ return [
 
         'local' => [
             'supervisor-default' => [
+                'maxProcesses' => 1,
+            ],
+            'supervisor-monitor-priority' => [ // Khớp với defaults
+                'maxProcesses' => 4,
+            ],
+            'supervisor-monitor-regular' => [ // Thêm supervisor này
                 'maxProcesses' => 2,
             ],
-            'supervisor-monitor' => [
-                'maxProcesses' => 6,
+            'supervisor-monitor-minute' => [ // Thêm supervisor này
+                'maxProcesses' => 2,
             ],
         ],
     ],
